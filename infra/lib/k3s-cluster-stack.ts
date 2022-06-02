@@ -48,8 +48,10 @@ export class K3sStack extends cdk.Stack {
     const k3sSecurityGroup = new ec2.SecurityGroup(this, 'sg', { vpc: k3sVpc });
 
     // add default ingress rules
+    //   ec2.Port.tcp(22)      - allow external ssh access
     //   ec2.Port.tcp(6443)    - allow external access to the k3s api
     //   ec2.Port.allTraffic() - allow ec2 instances in the same sg to access each other
+    k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), '');
     k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(6443), '');
     k3sSecurityGroup.addIngressRule(k3sSecurityGroup, ec2.Port.allTraffic(), '');
     
