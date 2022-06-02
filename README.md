@@ -9,8 +9,9 @@ $ aws ec2 create-key-pair \
     --output text > ~/.aws/keys/$AWS_REGION-k3s-key.pem
 ```
 
-**Deploy cluster:**
+**Deploy & destroy cluster:**
 
 ```bash
-$ npx cdk deploy
+$ ./deploy.sh
+$ ./destroy.sh
 ```
