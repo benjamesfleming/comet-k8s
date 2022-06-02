@@ -12,6 +12,8 @@ import {
 interface Props extends cdk.StackProps {
   cleanup?: boolean;
   expose?: number[];
+  instanceCount: number;
+  instanceType: ec2.InstanceType;
   keyName: string;
   hostedZone?: string;
 }
@@ -54,7 +56,7 @@ export class K3sStack extends cdk.Stack {
     // setup the k3s autoscaling group
     // this handles the lanuch template configuration
     const k3sAutoScalingGroup = new autoscaling.AutoScalingGroup(this, 'asg', {
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
+      instanceType: props?.instanceType,
       machineImage: ec2.MachineImage.latestAmazonLinux({
         cpuType: ec2.AmazonLinuxCpuType.ARM_64,
         generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
@@ -64,10 +66,9 @@ export class K3sStack extends cdk.Stack {
       blockDevices: [
         {deviceName: '/dev/sdb', volume: autoscaling.BlockDeviceVolume.ebs(64)},
       ],
-      maxCapacity: 2,
-      minCapacity: 2,
-      
-      keyName: `${props?.env?.region}-k3s-key`,
+      maxCapacity: props?.instanceCount,
+      minCapacity: props?.instanceCount,
+      keyName: props?.keyName,
     });
 
     // setup the network load balancer
@@ -200,7 +201,7 @@ fi
       let zone = route53.HostedZone.fromLookup(
         this, 'hostedzone', { domainName: props.hostedZone }
       );
-      
+
       let domainName = k3sLoadBalancer.loadBalancerDnsName;
       let recordName = `${props?.env?.region}.k3s.${zone.zoneName}.`;
 
