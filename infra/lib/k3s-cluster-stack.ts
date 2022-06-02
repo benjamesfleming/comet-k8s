@@ -13,7 +13,7 @@ interface Props extends cdk.StackProps {
   cleanup?: boolean;
   expose?: number[];
   keyName: string;
-  hostedZone?: route53.IHostedZone;
+  hostedZone?: string;
 }
 
 export class K3sStack extends cdk.Stack {
@@ -197,7 +197,10 @@ fi
       // *.{region}.k3s.{domain} -> {loadBalancerDnsName}
       //   {region}.k3s.{domain} -> {loadBalancerDnsName}
 
-      let zone = props.hostedZone;
+      let zone = route53.HostedZone.fromLookup(
+        this, 'hostedzone', { domainName: props.hostedZone }
+      );
+      
       let domainName = k3sLoadBalancer.loadBalancerDnsName;
       let recordName = `${props?.env?.region}.k3s.${zone.zoneName}.`;
 

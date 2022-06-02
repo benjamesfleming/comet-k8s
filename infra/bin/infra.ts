@@ -17,11 +17,9 @@ new K3sStack(app, 'cdk-k3s-cluster-us-east-1', {
   // $ export AWS_REGION=us-east-1
   // $ aws ec2 create-key-pair --region $AWS_REGION --key-name $AWS_REGION-k3s-key --query 'KeyMaterial' --output text > $AWS_REGION-k3s-key.pem
   keyName: 'us-east-1-k3s-key',
-  // pre-registed domain to use. (remove this to just use the elb endpoint)
+  // pre-registed domain to use. (remove this to use the elb endpoint)
   // stack will genearte the following records
   //  CNAME *.{region}.k3s.{domain} -> {loadBalancerDnsName}
   //  CNAME   {region}.k3s.{domain} -> {loadBalancerDnsName}
-  hostedZone: route53.HostedZone.fromLookup(
-    app, 'hostedzone', { domainName: 'hostedsrv.net' }
-  ),
+  hostedZone: 'hostedsrv.net',
 });
