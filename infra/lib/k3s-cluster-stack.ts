@@ -72,7 +72,10 @@ export class K3sStack extends cdk.Stack {
     });
 
     // setup the network load balancer
-    const k3sLoadBalancer = new elb2.NetworkLoadBalancer(this, 'elbv2', { vpc: k3sVpc });
+    const k3sLoadBalancer = new elb2.NetworkLoadBalancer(this, 'elbv2', { 
+      vpc: k3sVpc, 
+      internetFacing: true
+    });
 
     // add the default 6443 port to the load balancer
     // this is required to access the k3s cluster from outside the vpc
@@ -208,7 +211,7 @@ fi
       new route53.CnameRecord(this, 'k3s-cname', {zone, domainName, recordName});
       new route53.CnameRecord(this, 'k3s-wildcard-cname', {zone, domainName, recordName: '*.'+recordName});
 
-      new cdk.CfnOutput(this, 'Endpoint', { value: `https://${recordName}:6443` });
+      new cdk.CfnOutput(this, 'Endpoint', { value: `https://${recordName.slice(0, -2)}:6443` });
     } else {
       new cdk.CfnOutput(this, 'Endpoint', { value: `https://${k3sLoadBalancer.loadBalancerDnsName}:6443` });
     }
