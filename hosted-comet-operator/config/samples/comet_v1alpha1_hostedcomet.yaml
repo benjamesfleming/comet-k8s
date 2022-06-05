@@ -1,0 +1,39 @@
+# Hosted Comet Manifest
+# This is used by the hosted-comet-operator to configure a region. It will configure the DNS, Hosted Servers, Storage Volumes, and
+# link them together using a StatefulSet to ensure only one server configuration is ever availible on a given hostname
+#
+# DNS:
+#   The controller will configure DnsEndpoints using the external-dns package (https://github.com/kubernetes-sigs/external-dns).
+#   And will be responsible from creating and maintaining the following records.
+#
+#   A     <region>.<hostedZone>.                        ->  <nodes-external-ip-list>
+#   CNAME <region><ordinal-to-letter>.<hostedZone>.     ->  <region>.<hostedZone>.
+#   CNAME *.<region><ordinal-to-letter>.<hostedZone>.   ->  <region>.<hostedZone>.
+# 
+#   A     us-east-1.offsitenetwork.net.    ->  54.163.205.71,34.228.200.9754.242.170.183
+#   CNAME us-east-1a.offsitenetwork.net.   ->  us-east-1.offsitenetwork.net.
+#   CNAME *.us-east-1a.offsitenetwork.net. ->  us-east-1.offsitenetwork.net.
+#
+# TRAEFIK:
+#   A custom traefik ingrees route can take over once the request has made it to a host, mapping the hostname to 
+#   the correct stateful pod.
+#
+#   Host(`us-east-1a.offsitenetwork.net`, `*.us-east-1a.offsitenetwork.net`) -> hosted-comet-0.hosted-comet-ss.svc.cluster.local
+#   Host(`us-east-1b.offsitenetwork.net`, `*.us-east-1b.offsitenetwork.net`) -> hosted-comet-1.hosted-comet-ss.svc.cluster.local
+#
+# LIMITATIONS:
+#   1. There is no external load balancer (elbv2). Becuase of this there could be an extra hop. 
+#      User -> Host1 -> Ingress (traefik) -> ServiceMesh (flannel) -> Host2 -> Pod -> Comet Server
+#   2. The initial failover after a host failure might be slow, and relies on the client performing DNS Failover.
+#   3. ...
+apiVersion: comet.cometbackup.com/v1alpha1
+kind: HostedComet
+metadata:
+  name: hostedcomet-sample
+spec:
+  region: us-east-1
+  hostedZone: offsitenetwork.net
+  # Number of replicas the controller should deploy.
+  # This maps directly to a StatefulSet with a matching number of replicas. Using replicas=3 will produce:
+  #   us-east-1{a,b,c}.offsitenetwork.net
+  replicas: 3

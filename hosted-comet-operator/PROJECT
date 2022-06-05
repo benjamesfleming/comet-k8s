@@ -1,0 +1,24 @@
+domain: cometbackup.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: hosted-comet-operator
+repo: github.com/cometbackup/hosted-comet-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cometbackup.com
+  group: comet
+  kind: HostedComet
+  path: github.com/cometbackup/hosted-comet-operator/api/v1alpha1
+  version: v1alpha1
+- controller: true
+  group: core
+  kind: Node
+  path: k8s.io/api/core/v1
+  version: v1
+version: "3"
