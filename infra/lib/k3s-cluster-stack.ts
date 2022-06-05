@@ -1,223 +1,244 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
-  aws_iam as iam,
-  aws_s3 as s3,
-  aws_ec2 as ec2,
-  aws_autoscaling as autoscaling,
-  aws_elasticloadbalancingv2 as elb2,
-  aws_route53 as route53,
+    aws_iam as iam,
+    aws_s3 as s3,
+    aws_ec2 as ec2,
+    aws_autoscaling as autoscaling,
+    aws_secretsmanager as secretsmanager,
 } from 'aws-cdk-lib';
+import { AWS_ROUTE53_POLICY } from '../policies/aws-route53-external-dns';
+import { AWS_ELB_CONTROLLER_POLICY } from '../policies/aws-load-balancer-controller';
 
 interface Props extends cdk.StackProps {
-  cleanup?: boolean;
-  expose?: number[];
-  instanceCount: number;
-  instanceType: ec2.InstanceType;
-  keyName: string;
-  hostedZone?: string;
+    cleanup?: boolean;
+    expose?: number[];
+    instanceCount: number;
+    instanceType: ec2.InstanceType;
+    keyName: string;
+    hostedZone?: string;
 }
 
 export class K3sStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: Props) {
-    super(scope, id, props);
+    constructor(scope: Construct, id: string, props?: Props) {
+        super(scope, id, props);
 
-    // setup the configuration s3 bucket
-    // the nodes will check this bucket at startup and configure accordingly
-    const k3sBucket = new s3.Bucket(this, 's3-mgmt-bucket', {
-      removalPolicy: props?.cleanup?cdk.RemovalPolicy.DESTROY:cdk.RemovalPolicy.RETAIN,
-      autoDeleteObjects: props?.cleanup??false,
-    });
+        // setup the vpc
+        // this will only use public subnets
+        const k3sVpc = new ec2.Vpc(this, 'vpc', { 
+            natGateways: 1, 
+            maxAzs: 1,
+            subnetConfiguration: [
+                {name: 'ingress', cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC},
+            ],
+        });
 
-    // enable versioning on the bucket, 
-    // this is required for the "lock" system
-    (k3sBucket.node.defaultChild as s3.CfnBucket).versioningConfiguration = {
-      status: 'Enabled'
-    };
+        // setup the security group
+        const k3sSecurityGroup = new ec2.SecurityGroup(this, 'sg', { vpc: k3sVpc });
 
-    // setup the vpc
-    // this will only use public subnets
-    const k3sVpc = new ec2.Vpc(this, 'vpc', { 
-      natGateways: 1, 
-      subnetConfiguration: [
-        {name: 'public', cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC},
-      ],
-    });
+        // add default ingress rules
+        //   ec2.Port.tcp(22)      - allow external ssh access
+        //   ec2.Port.tcp(80)      - allow external access traefik:80
+        //   ec2.Port.tcp(443)     - allow external access traefik:443
+        //   ec2.Port.tcp(6443)    - allow external access to the k3s api
+        //   ec2.Port.allTraffic() - allow ec2 instances in the same sg to access each other
+        k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), '');
+        k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), '');
+        k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), '');
+        k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(6443), '');
+        k3sSecurityGroup.addIngressRule(k3sSecurityGroup, ec2.Port.allTraffic(), '');
+        
+        // setup the k3s autoscaling group
+        // this handles the lanuch template configuration
+        const k3sAutoScalingGroup = new autoscaling.AutoScalingGroup(this, 'asg', {
+            instanceType: props?.instanceType,
+            machineImage: ec2.MachineImage.latestAmazonLinux({
+                cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+                generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
+            }),
+            vpc: k3sVpc,
+            securityGroup: k3sSecurityGroup,
+            blockDevices: [
+                {deviceName: '/dev/sdb', volume: autoscaling.BlockDeviceVolume.ebs(64)},
+            ],
+            maxCapacity: props?.instanceCount,
+            minCapacity: props?.instanceCount,
+            keyName: props?.keyName,
+        });
 
-    // setup the security group
-    const k3sSecurityGroup = new ec2.SecurityGroup(this, 'sg', { vpc: k3sVpc });
+        // setup the k3s token secret
+        // this is used to securely share the k3s cluster token between nodes
+        const k3sToken = new secretsmanager.Secret(this, 'token');
 
-    // add default ingress rules
-    //   ec2.Port.tcp(22)      - allow external ssh access
-    //   ec2.Port.tcp(6443)    - allow external access to the k3s api
-    //   ec2.Port.allTraffic() - allow ec2 instances in the same sg to access each other
-    k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), '');
-    k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(6443), '');
-    k3sSecurityGroup.addIngressRule(k3sSecurityGroup, ec2.Port.allTraffic(), '');
-    
-    // setup the k3s autoscaling group
-    // this handles the lanuch template configuration
-    const k3sAutoScalingGroup = new autoscaling.AutoScalingGroup(this, 'asg', {
-      instanceType: props?.instanceType,
-      machineImage: ec2.MachineImage.latestAmazonLinux({
-        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
-        generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
-      }),
-      vpc: k3sVpc,
-      securityGroup: k3sSecurityGroup,
-      blockDevices: [
-        {deviceName: '/dev/sdb', volume: autoscaling.BlockDeviceVolume.ebs(64)},
-      ],
-      maxCapacity: props?.instanceCount,
-      minCapacity: props?.instanceCount,
-      keyName: props?.keyName,
-    });
+        k3sToken.grantRead(k3sAutoScalingGroup.role);
+        k3sToken.grantWrite(k3sAutoScalingGroup.role);
 
-    // setup the network load balancer
-    const k3sLoadBalancer = new elb2.NetworkLoadBalancer(this, 'elbv2', { 
-      vpc: k3sVpc, 
-      internetFacing: true
-    });
-
-    // add the default 6443 port to the load balancer
-    // this is required to access the k3s cluster from outside the vpc
-    const k3sTargetGroup6443 = k3sLoadBalancer
-      .addListener('elb-port-6443', { port: 6443 })
-      .addTargets('elb-target-6443', { 
-        port: 6443, 
-        targets: [k3sAutoScalingGroup] 
-      });
-
-
-    // expose the user provided ports to the load balancer
-    // FIXME: this defaults to TCP connections only
-    for (let port of props?.expose??[]) {
-      k3sSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(port), 'port-tcp-'+port);
-      k3sLoadBalancer
-        .addListener('listener-'+port, { port })
-        .addTargets('target-'+port, { port, targets: [k3sAutoScalingGroup] });
-    }
-
-    // add the instance user data
-    // this is a bash script that is run on each instances inital start up
-    k3sAutoScalingGroup.addUserData(
+        // add the instance user data
+        // this is a bash script that is run on each instances inital start up
+        k3sAutoScalingGroup.addUserData(
 `
 #!/bin/bash -xe
+
+set -o pipefail
+
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
-export LOGFILE='/var/log/k3s.log'
-export BUCKET_NAME=${k3sBucket.bucketName}
-export ELB_TARGET_GROUP_ARN=${k3sTargetGroup6443.targetGroupArn}
+export LOGFILE=/var/log/k3s.log
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
-# register ip in s3 bucket
+REGION=${props?.env?.region}
+TOKEN_SECRET_ID=${k3sToken.secretArn}
 
-MY_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-MY_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+# ----
 
-echo $MY_IP | aws s3 cp - s3://$BUCKET_NAME/nodes/$MY_ID
+put_k3s_token () {
+    aws secretsmanager put-secret-value --region $REGION --secret-id $TOKEN_SECRET_ID --secret-string file:///var/lib/rancher/k3s/server/node-token
+}
 
-# hacky locking system
-# --
-# all devices will update the <bucket>/lock file. 
-# the first device to obtain a lock (the oldest version) is consisdered to have the lock
+get_k3s_token () {
+    TOKEN=$(aws secretsmanager get-secret-value --region $REGION --secret-id $TOKEN_SECRET_ID --query 'SecretString' --output text)
+    if [[ $? -ne 0 || "$TOKEN" != *":server:"* ]]; then
+        return 1
+    fi
+}
 
-MY_LOCK_ID=$(aws s3api put-object --bucket $BUCKET_NAME --key lock --body /etc/hostname --output text --query 'VersionId')
-OLDEST_LOCK_ID=$(aws s3api list-object-versions --bucket $BUCKET_NAME --prefix lock --no-paginate --output text --query 'Versions[-1].VersionId')
-
-echo "my lock: $MY_LOCK_ID"
-echo "oldest lock: $OLDEST_LOCK_ID"
-
-if [ "$MY_LOCK_ID" != "$OLDEST_LOCK_ID" ]; then 
-  echo "waiting for cluster to start up"
-
-  # wait for the initial node to init the cluster
-  # check the load balancer target group, connect to the first healthy node
-
-  NODE_0_ID=$(aws elbv2 describe-target-health --region ${props?.env?.region} --target-group-arn $ELB_TARGET_GROUP_ARN --query 'TargetHealthDescriptions[?TargetHealth.State==\`healthy\`].Target.Id | [0]' --output text)
-  while [ "$NODE_0_ID" == "None" ]; do
-    sleep 5
-    NODE_0_ID=$(aws elbv2 describe-target-health --region ${props?.env?.region} --target-group-arn $ELB_TARGET_GROUP_ARN --query 'TargetHealthDescriptions[?TargetHealth.State==\`healthy\`].Target.Id | [0]' --output text)
-  done
-  
-  NODE_0_IP=$(aws s3 cp s3://$BUCKET_NAME/nodes/$NODE_0_ID -)
-  TOKEN=$(aws s3 cp s3://$BUCKET_NAME/token -)
-
-  curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable INSTALL_K3S_EXEC="server -t $TOKEN --server https://$NODE_0_IP:6443 --write-kubeconfig-mode 0644" sh -s -
-else
-  echo "assuming node0 role... creating cluster"
-
-  # lock acquired, start cluster init process
-  # this will generate the cluster token
-
-  curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable INSTALL_K3S_EXEC="server --cluster-init --write-kubeconfig-mode 0644" sh -s -
-
-  cp /etc/rancher/k3s/k3s.yaml /tmp/kubeconfig.yaml
-  sed -i s/127.0.0.1/${props?.env?.region}.k3s.hostedsrv.net/ /tmp/kubeconfig.yaml
-
-  aws s3 cp /var/lib/rancher/k3s/server/node-token s3://$BUCKET_NAME/token
-  aws s3 cp /tmp/kubeconfig.yaml s3://$BUCKET_NAME/kubeconfig.yaml
-fi
-`);
-
-    // set up the default instance role
-    // this give the instances access to the management bucket and elb target health, which
-    // is needed for initial cluster coordination
-    k3sAutoScalingGroup.role.attachInlinePolicy(
-      new iam.Policy(this, 'k3s-instance-policy', {
-        statements: [
-          new iam.PolicyStatement({
-            // https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/load-balancer-authentication-access-control.html#elb-resources
-            // DescribeTargetHealth requires wildcard '*' resources
-            resources: ['*'],
-            actions: [
-              'elasticloadbalancing:DescribeTargetHealth'
-            ],
-          }),
-          new iam.PolicyStatement({
-            resources: [
-              k3sBucket.bucketArn,
-              k3sBucket.bucketArn+'/*'
-            ],
-            actions: [
-              's3:Abort*',
-              's3:DeleteObject*',
-              's3:GetBucket*',
-              's3:GetObject*',
-              's3:List*',
-              's3:PutObject',
-              's3:PutObjectLegalHold',
-              's3:PutObjectRetention',
-              's3:PutObjectTagging',
-              's3:PutObjectVersionTagging',
-              's3:PutObjectAcl',
-              's3:PutObjectVersionAcl',
-            ],
-          }),
-        ]
-      })
+get_oldest_node () {
+    local INSTANCE; INSTANCE=$(
+        aws ec2 describe-instances \
+            --region $REGION \
+            --filters \
+                Name=tag:aws:cloudformation:stack-name,Values=${this.stackName} \
+                Name=instance-state-name,Values=running \
+            --query 'sort_by(Reservations[].Instances[], &LaunchTime)[*].[PrivateIpAddress,InstanceId]' \
+            --output text | head -n1
     );
 
-    if (props?.hostedZone !== undefined) {
+    if [[ $? -ne 0  || "$INSTANCE" == "None" ]]; then
+        return 1
+    fi
 
-      // setup route 53
-      // *.{region}.k3s.{domain} -> {loadBalancerDnsName}
-      //   {region}.k3s.{domain} -> {loadBalancerDnsName}
+    OLDEST_IP=$(echo $INSTANCE | cut -d " " -f 1)
+    OLDEST_ID=$(echo $INSTANCE | cut -d " " -f 2)
+}
 
-      let zone = route53.HostedZone.fromLookup(
-        this, 'hostedzone', { domainName: props.hostedZone }
-      );
+# ----
 
-      let domainName = k3sLoadBalancer.loadBalancerDnsName;
-      let recordName = `${props?.env?.region}.k3s.${zone.zoneName}.`;
+init_k3s_cluster () {
+    echo "assuming node0 role... creating cluster"
 
-      new route53.CnameRecord(this, 'k3s-cname', {zone, domainName, recordName});
-      new route53.CnameRecord(this, 'k3s-wildcard-cname', {zone, domainName, recordName: '*.'+recordName});
+    # start cluster init process
+    # this will generate the cluster token if required
 
-      new cdk.CfnOutput(this, 'Endpoint', { value: `https://${recordName.slice(0, -2)}:6443` });
-    } else {
-      new cdk.CfnOutput(this, 'Endpoint', { value: `https://${k3sLoadBalancer.loadBalancerDnsName}:6443` });
-    }
+    local HAS_TOKEN=$(get_k3s_token; echo $?)
+
+    if [ "$HAS_TOKEN" == "0" ]; then 
+        INSTALL_ARGS="$INSTALL_ARGS --token $TOKEN"
+    fi
+
+    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable INSTALL_K3S_EXEC="$INSTALL_ARGS --cluster-init" sh -s -
+   
+    if [ "$HAS_TOKEN" != "0" ]; then 
+        put_k3s_token
+    fi
+}
+
+join_k3s_cluster () {
+    echo "awaiting node0... "
+
+    # wait for the initial node to init the cluster
+    # this waits for the token to be initalized; or fails after 5 minutes
     
-    new cdk.CfnOutput(this, 'Kubernetes Configuration File', { value: `s3://${k3sBucket.bucketName}/kubeconfig.yaml` });
-  }
+    until get_k3s_token ; do
+        echo "waiting for secret..."
+        ((c++)) && ((c==60)) && c=0 && exit 1; sleep 5
+    done
+
+    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable INSTALL_K3S_EXEC="$INSTALL_ARGS --server https://$OLDEST_IP:6443 --token $TOKEN" sh -s -
+}
+
+# ----
+
+init_variables () {
+    MY_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+    MY_LOCAL_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
+    MY_PUBLIC_IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+    PROVIDER_ID=$(curl http://169.254.169.254/latest/meta-data/placement/availability-zone)/$MY_ID
+    
+    # get the instance id anb ip address of the oldest
+    # ec2 instance with tag '${this.stackName}'
+    
+    until get_oldest_node ; do
+        echo "failed to get oldest node... retrying"
+        ((c++)) && ((c==60)) && c=0 && exit 1; sleep 5
+    done
+
+    echo "my_id    : $MY_ID"
+    echo "oldest_id: $OLDEST_ID"
+
+    INSTALL_ARGS="server \
+        --node-ip $MY_LOCAL_IP \
+        --node-external-ip $MY_PUBLIC_IP \
+        --advertise-address $MY_LOCAL_IP \
+        --write-kubeconfig-mode=0644 \
+        --kubelet-arg=\"provider-id=aws:///$PROVIDER_ID\""
+}
+
+init_host () {
+    CUR_HOSTNAME=$(cat /etc/hostname)
+
+    hostnamectl set-hostname $MY_ID
+    hostname $MY_ID
+
+    sed -i "s/$CUR_HOSTNAME/$MY_ID/g" /etc/hosts
+    sed -i "s/$CUR_HOSTNAME/$MY_ID/g" /etc/hostname
+}
+
+init_k3s () {
+    if [ "$MY_ID" != "$OLDEST_ID" ]; then 
+        join_k3s_cluster
+    else
+        init_k3s_cluster
+    fi
+}
+
+# ----
+# if k3s is installed the skip the rest of the script
+
+if [ -x "$(command -v k3s)" ]; then
+    echo "k3s is already installed"
+    exit 0
+fi
+
+{
+    init_variables
+    init_host
+    init_k3s
+}
+`);
+
+        // allow route53 dns changes
+        // TODO: use kube2iam to prevent rogue containers from assuming the role
+        // https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md
+        k3sAutoScalingGroup.role.attachInlinePolicy(
+            new iam.Policy(this, 'k3s-external-dns-policy', {document: AWS_ROUTE53_POLICY})
+        );
+
+        // set up the default instance role
+        // this give the instances access to the management bucket and elb target health, which
+        // is needed for initial cluster coordination
+        k3sAutoScalingGroup.role.attachInlinePolicy(
+            new iam.Policy(this, 'k3s-instance-policy', {
+                statements: [
+                    new iam.PolicyStatement({
+                        resources: ['*'],
+                        actions: [
+                            'ec2:DescribeInstances',
+                        ],
+                    }),
+                ]
+            })
+        );
+
+        new cdk.CfnOutput(this, 'kubeconfig.yaml', { value: `scp -i ~/.ssh/${props?.keyName}.pem ec2-user@<instance-ip>:/etc/rancher/k3s/k3s.yaml ./kubeconfig.yaml` })
+    }
 }
