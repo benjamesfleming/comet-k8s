@@ -2,13 +2,11 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
     aws_iam as iam,
-    aws_s3 as s3,
     aws_ec2 as ec2,
     aws_autoscaling as autoscaling,
     aws_secretsmanager as secretsmanager,
 } from 'aws-cdk-lib';
 import { AWS_ROUTE53_POLICY } from '../policies/aws-route53-external-dns';
-import { AWS_ELB_CONTROLLER_POLICY } from '../policies/aws-load-balancer-controller';
 
 interface Props extends cdk.StackProps {
     cleanup?: boolean;
