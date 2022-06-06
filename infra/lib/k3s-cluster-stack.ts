@@ -236,7 +236,5 @@ fi
                 ]
             })
         );
-
-        new cdk.CfnOutput(this, 'kubeconfig.yaml', { value: `scp -i ~/.ssh/${props?.keyName}.pem ec2-user@<instance-ip>:/etc/rancher/k3s/k3s.yaml ./kubeconfig.yaml` })
     }
 }
