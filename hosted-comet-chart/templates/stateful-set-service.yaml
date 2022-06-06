@@ -1,0 +1,16 @@
+{{- range $i := until (.Values.replicas | int) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $i }}
+  labels:
+    statefulset.kubernetes.io/pod-name: {{ $.Release.Name }}-{{ $i }}
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  selector:
+    statefulset.kubernetes.io/pod-name: {{ $.Release.Name }}-{{ $i }}
+{{- end }}

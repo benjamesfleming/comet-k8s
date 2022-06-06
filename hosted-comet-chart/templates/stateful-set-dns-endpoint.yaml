@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: DNSEndpoint
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoints:
+  {{- range $i := until (.Values.replicas | int) }}
+  {{- $letterMap := "abcdefghijklmnopqrstuvwxyz" }}
+  {{- $fqdn := printf "%s%s.%s" $.Values.hostedZonePrefix ($letterMap | substr $i (add1 $i | int)) $.Values.hostedZone }}
+  - dnsName: {{ $fqdn }}
+    recordTTL: 180
+    recordType: CNAME
+    targets:
+      - {{ $.Values.hostedZonePrefix }}.{{ $.Values.hostedZone }}
+  {{- end }}
