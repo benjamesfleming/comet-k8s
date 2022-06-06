@@ -15,7 +15,7 @@ spec:
     singular: hostedcomet
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1
     schema:
       openAPIV3Schema:
         description: HostedComet is the Schema for the hostedcomets API
@@ -35,10 +35,12 @@ spec:
           spec:
             description: HostedCometSpec defines the desired state of HostedComet
             properties:
-              foo:
-                description: Foo is an example field of HostedComet. Edit hostedcomet_types.go
-                  to remove/update
+              hostedZone:
                 type: string
+              region:
+                type: string
+              replicas:
+                type: integer
             type: object
           status:
             description: HostedCometStatus defines the observed state of HostedComet

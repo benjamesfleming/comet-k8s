@@ -24,14 +24,17 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/external-dns/endpoint"
 
-	cometv1alpha1 "github.com/cometbackup/hosted-comet-operator/api/v1alpha1"
+	cometv1 "github.com/cometbackup/hosted-comet-operator/api/v1"
 	"github.com/cometbackup/hosted-comet-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +47,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(cometv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(cometv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -78,18 +81,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	groupVersion := schema.GroupVersion{Group: "externaldns.k8s.io", Version: "v1alpha1"}
+	scheme.AddKnownTypes(groupVersion,
+		&endpoint.DNSEndpoint{},
+		&endpoint.DNSEndpointList{},
+	)
+	metav1.AddToGroupVersion(scheme, groupVersion)
+
 	if err = (&controllers.HostedCometReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HostedComet")
-		os.Exit(1)
-	}
-	if err = (&controllers.NodeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

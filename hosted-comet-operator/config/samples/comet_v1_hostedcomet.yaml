@@ -1,5 +1,5 @@
 # Hosted Comet Manifest
-# This is used by the hosted-comet-operator to configure a region. It will configure the DNS, Hosted Servers, Storage Volumes, and
+# This is used by the hosted-comet-operator to configure a region. It will configure the DNS (with failover), Hosted Servers, Storage Volumes, and
 # link them together using a StatefulSet to ensure only one server configuration is ever availible on a given hostname
 #
 # DNS:
@@ -22,11 +22,11 @@
 #   Host(`us-east-1b.offsitenetwork.net`, `*.us-east-1b.offsitenetwork.net`) -> hosted-comet-1.hosted-comet-ss.svc.cluster.local
 #
 # LIMITATIONS:
-#   1. There is no external load balancer (elbv2). Becuase of this there could be an extra hop. 
+#   1. There is no external load balancer (elbv2). This could create an extra hop for client connection. 
 #      User -> Host1 -> Ingress (traefik) -> ServiceMesh (flannel) -> Host2 -> Pod -> Comet Server
 #   2. The initial failover after a host failure might be slow, and relies on the client performing DNS Failover.
 #   3. ...
-apiVersion: comet.cometbackup.com/v1alpha1
+apiVersion: comet.cometbackup.com/v1
 kind: HostedComet
 metadata:
   name: hostedcomet-sample

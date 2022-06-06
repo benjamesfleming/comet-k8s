@@ -14,22 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+var (
+	letterMap = []rune("abcdefghijklmnopqrstuvwxyz")
+)
+
 // HostedCometSpec defines the desired state of HostedComet
 type HostedCometSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of HostedComet. Edit hostedcomet_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Region     string `json:"region,omitempty"`
+	HostedZone string `json:"hostedZone,omitempty"`
+	Replicas   int    `json:"replicas,omitempty"`
 }
 
 // HostedCometStatus defines the observed state of HostedComet
@@ -61,4 +68,14 @@ type HostedCometList struct {
 
 func init() {
 	SchemeBuilder.Register(&HostedComet{}, &HostedCometList{})
+}
+
+// --
+
+func (h *HostedComet) GetRegionFQDN() string {
+	return fmt.Sprintf("%s.%s", h.Spec.Region, h.Spec.HostedZone)
+}
+
+func (h *HostedComet) GetPodFQDN(i int) string {
+	return fmt.Sprintf("%s%c.%s", h.Spec.Region, letterMap[i], h.Spec.HostedZone)
 }
