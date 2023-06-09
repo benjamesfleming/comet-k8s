@@ -1,69 +1,48 @@
-**Create a regional key-pair:**
+# Comet Server Cluster (Experimental)
+
+Create a three-node Comet Server region in Hetzner Cloud. Built using Hetzner's k3s terraform provider - [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner).
+
+**How it works:**
+
+1. Use [packer](https://www.packer.io/) to create a Hetzner snapshot containing the base k3s node image.
+2. Use [terraform](https://www.terraform.io/) to create a configure a three-node k3s cluster using Hetzner Cloud VMs.
+3. Use a custom [helm](https://helm.sh/) chart to deploy [ghcr.io/cometbackup/comet-server](https://github.com/cometbackup/comet-server-docker/pkgs/container/comet-server) to each node (using StatefulSet with pod-antiaffinity to restrict one server per node).
+4. Use [external-dns](https://github.com/kubernetes-sigs/external-dns) to update Route53 records.
+5. Using pre-configured `account.cometbackup.com` credentials, generate a Comet Server serial number.
+
+**Overview:**
+
+![](doc/overview.png)
+
+
+**Requirements:**
+
+Please ensure that you have the `hcloud` CLI, `terraform`, `packer`, `kubectl`, and `helm` installed before continuing.
+
+**Usage:**
 
 ```bash
-$ export AWS_REGION=us-east-1
-$ aws ec2 create-key-pair \
-    --region $AWS_REGION \
-    --key-name $AWS_REGION-k3s-key \
-    --query 'KeyMaterial' \
-    --output text > ~/.aws/keys/$AWS_REGION-k3s-key.pem
-```
+export HCLOUD_TOKEN="<your-hcloud-token>"
+export TF_VAR_hcloud_token=$HCLOUD_TOKEN
 
-**Deploy & destroy cluster:**
+# Build the node images -
+# This only needs to be run once to create the initial images
+packer init packer/hcloud-microos-snapshots.pkr.hcl
+packer build packer/hcloud-microos-snapshots.pkr.hcl
 
-```bash
-$ ./deploy.sh
-$ ./destroy.sh
-```
+# Bring up the cluster
+terraform init --upgrade
+terraform apply --auto-approve
 
-```bash
-mkdir -p /var/lib/rancher/k3s/server/manifests
+# You should now have a kubeconfig file in the project root -
+# Export this, and test the cluster connection
+export KUBECONFIG=/k3s_kubeconfig.yaml
+kubectl get nodes -o wide
 
-curl https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /var/lib/rancher/k3s/server/manifests/longhorn.yaml
-```
+# Secrets
+kubectl create secret generic comet-account-creds --namespace default --from-literal email=<account@email.com> --from-literal password=<account-password>
+kubectl create secret generic r53-creds --namespace default --from-file ~/.aws/credentials
 
-**Deploy AWS load balancers:**
-
-Append this to the end of the user-script to setup the [aws-load-balancer-controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/). This requires the AWS VPC CNI, which I was unable to get working with k3s :(
-
-```bash
-# create or replace registry secret
-# https://stackoverflow.com/a/55658863
-
-ECR_REGION=us-west-2
-ECR_TOKEN=$(aws ecr --region=$ECR_REGION get-authorization-token --output text --query authorizationData[].authorizationToken | base64 -d | cut -d: -f2)
-
-kubectl delete secret --ignore-not-found -n kube-system aws-ecr-secret
-kubectl create secret docker-registry aws-ecr-secret \
-    -n kube-system \
-    --docker-server=https://602401143452.dkr.ecr.$ECR_REGION.amazonaws.com \
-    --docker-username=AWS \
-    --docker-password="\${ECR_TOKEN}" \
-    --docker-email="email@email.com"
-
-# install the aws load balancer controller
-# https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/
-
-cat <<EOF | kubectl apply -f -
-apiVersion: helm.cattle.io/v1
-kind: HelmChart
-metadata:
-  name: aws-load-balancer-controller
-  namespace: kube-system
-spec:
-  repo: https://aws.github.io/eks-charts
-  chart: eks/aws-load-balancer-controller
-  targetNamespace: kube-system
-  valuesContent: |
-    clusterName: default
-    
-    serviceAccount:
-      create: false
-      name: aws-load-balancer-controller
-      annotations:
-        eks.amazonaws.com/role-arn: "${k3sAutoScalingGroup.role.roleArn}"
-    
-    imagePullSecrets:
-    - name: aws-ecr-secret
-EOF
+# Deploy the chart
+helm install cometd ./chart
 ```
