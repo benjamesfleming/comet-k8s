@@ -34,7 +34,4 @@
 replicas: 3
 
 hostedZone: hostedsrv.net
-hostedZonePrefix: us-east-1
-
-externalDNS:
-  provider: aws
+hostedZonePrefix: eu-central-1
