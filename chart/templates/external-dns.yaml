@@ -75,13 +75,13 @@ spec:
           env:
             - name: AWS_DEFAULT_REGION
               value: us-east-1
-            - name: AWS_SHARED_CREDENTIALS_FILE
-              value: /.aws/credentials
-          volumeMounts:
-            - name: aws-credentials
-              mountPath: /.aws
-              readOnly: true
-      volumes:
-        - name: aws-credentials
-          secret:
-            secretName: external-dns-creds
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: r53-creds
+                  key: access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: r53-creds
+                  key: secret_access_key

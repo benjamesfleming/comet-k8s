@@ -1,0 +1,44 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: {{ .Release.Name }}-letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    {{- range $i := until (.Values.replicas | int) }}
+    {{- $letterMap := "abcdefghijklmnopqrstuvwxyz" }}
+    {{- $fqdn := printf "%s%s.%s" $.Values.hostedZonePrefix ($letterMap | substr $i (add1 $i | int)) $.Values.hostedZone }}
+    - "*.{{ $fqdn }}"
+    - "{{ $fqdn }}"
+    {{- end }}
+    secretName: {{ .Release.Name }}-letsencrypt-prod
+  rules:
+  {{- range $i := until (.Values.replicas | int) }}
+  {{- $letterMap := "abcdefghijklmnopqrstuvwxyz" }}
+  {{- $fqdn := printf "%s%s.%s" $.Values.hostedZonePrefix ($letterMap | substr $i (add1 $i | int)) $.Values.hostedZone }}
+  - host: "*.{{ $fqdn }}"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: {{ $.Release.Name }}-{{ $i }}
+            port:
+              number: 80
+  - host: "{{ $fqdn }}"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: {{ $.Release.Name }}-{{ $i }}
+            port:
+              number: 80
+  {{- end }}

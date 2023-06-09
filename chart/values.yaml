@@ -35,3 +35,7 @@ replicas: 3
 
 hostedZone: hostedsrv.net
 hostedZonePrefix: eu-central-1
+
+letsencrypt:
+  email: ben@benfleming.nz
+  r53AccessKey: ""
