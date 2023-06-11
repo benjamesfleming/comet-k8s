@@ -1,0 +1,27 @@
+apiVersion: cometd.cometbackup.com/v1alpha1
+kind: CometServer
+metadata:
+  labels:
+    app.kubernetes.io/name: cometserver
+    app.kubernetes.io/instance: cometserver-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: cometserver-sample
+spec:
+  # Comet Server Version -
+  # To see all possible versions vist https://ghcr.io/cometbackup/comet-server
+  version: 23.5.0
+  # License configuration -
+  #   issuer: An exisiting CometLicenseIssuer to be used when generating serial numbers.
+  #   features: A list of license feature flags to enable/disable. All features are enabled by default. 
+  license:
+    issuer: cometlicenseissuer-sample
+    features:
+      LIFT_STORAGE_ROLE: 0
+  # The ingress configuration, used to specify the host FQDN -
+  # Example: host=example.com will generate the following ingress rules:
+  #   cometserver-sample.example.com
+  #   *.cometserver-sample.example.com
+  ingress:
+    host: example.com

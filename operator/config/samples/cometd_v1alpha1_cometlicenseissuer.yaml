@@ -1,0 +1,21 @@
+apiVersion: cometd.cometbackup.com/v1alpha1
+kind: CometLicenseIssuer
+metadata:
+  labels:
+    app.kubernetes.io/name: cometlicenseissuer
+    app.kubernetes.io/instance: cometlicenseissuer-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: cometlicenseissuer-sample
+spec:
+  # Authentication -
+  #   email: https://account.cometbackup.com user email
+  #   token: https://account.cometbackup.com api token (license::create permission required)
+  auth:
+    email: user@example.com
+    token: ""
+  # License features -
+  # A list of license feature flags to enable/disable. All features are enabled by default
+  features: 
+    LIFT_STORAGE_ROLE: 0
