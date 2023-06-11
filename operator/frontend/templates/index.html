@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <title>{{ .PageData.PageTitle }}</title>
+    <style>
+        :root {
+            --border-radius: 3px;
+            --font-size: 16px;
+            --form-element-spacing-vertical: 5px;
+            --form-element-spacing-horizontal: 5px;
+        }
+        h1, h2, h3 {
+            --typography-spacing-vertical: 1.625rem;
+        }
+        body {
+            width: 960px;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th,
+        table td {
+            border: 1px solid slategray;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Comet Server Operator</h1>
+    <table role="grid">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Serial</th>
+                <th>DNS</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range .Servers}} 
+            <tr>
+                <td>{{.ObjectMeta.Name}}</td>
+                <td>{{.Spec.Version}}</td>
+                <td>{{.SerialNumber}}</td>
+                <td>
+                    <a target="_blank" href="https://{{.FQDN}}">{{.FQDN}}</a>
+                </td>
+                <td>{{.ObjectMeta.CreationTimestamp}}</td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+    <hr/>
+    <div style="max-width: 480px;">
+        <h5>Create a new Comet Server</h5>
+        <form>
+            <div>
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" placeholder="cometserver-1" required>
+                <small>Must be cluster unique*</small>
+            </div>
+            <div>
+                <label for="version">Version</label>
+                <input type="text" id="version" name="version" value="23.5.0" required>
+            </div>
+            <div>
+                <label for="hostname">Hostname</label>
+                <input type="text" id="hostname" name="hostname" value="example.com" required>
+            </div>
+            <button type="submit" disabled>Create</button>
+        </form>
+    </div>
+</body>
+</html>
