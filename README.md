@@ -14,12 +14,15 @@ Create a three-node Comet Server region in Hetzner Cloud. Built using Hetzner's 
 
 ![](doc/overview.png)
 
+*N.B. The diagram shows the deployment structure when using helm chart, not the operator.*
 
 **Requirements:**
 
 Please ensure that you have the `hcloud` CLI, `terraform`, `packer`, `kubectl`, and `helm` installed before continuing.
 
 **Usage:**
+
+Bring up the cluster -
 
 ```bash
 export HCLOUD_TOKEN="<your-hcloud-token>"
@@ -38,11 +41,26 @@ terraform apply --auto-approve
 # Export this, and test the cluster connection
 export KUBECONFIG=/k3s_kubeconfig.yaml
 kubectl get nodes -o wide
+```
 
+**Option 1**: Deploy a three-server Comet Server region.
+
+```bash
 # Secrets
 kubectl create secret generic comet-account-creds --namespace default --from-literal email=<account@email.com> --from-literal password=<account-password>
 kubectl create secret generic r53-creds --namespace default --from-literal access_key_id=<aws-access-key> --from-literal secret_access_key=<aws-secret-key>
 
 # Deploy the chart
 helm install cometd ./chart
+```
+
+**Option 2**: Deploy a Comet Server operator with built-in admin UI (WIP).
+
+```bash
+export REGISTRY="<your-registry> # NOTE: The Hetzner cluster must have access to this registry
+
+cd operator
+
+make docker-build docker-push IMG=$REGISTRY/comet-server-operator:latest
+make deploy IMG=$REGISTRY/comet-server-operator:latest
 ```
