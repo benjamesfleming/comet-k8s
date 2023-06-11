@@ -63,4 +63,45 @@ cd operator
 
 make docker-build docker-push IMG=$REGISTRY/comet-server-operator:latest
 make deploy IMG=$REGISTRY/comet-server-operator:latest
+
+cat <<EOF > kubectl -f -
+apiVersion: cometd.cometbackup.com/v1alpha1
+kind: CometLicenseIssuer
+metadata:
+  name: cometlicenseissuer-default
+spec:
+  auth:
+    email: user@example.com # https://account.cometbackup.com User email 
+    token: abc123           # https://account.cometbackup.com API token with the 'license::create' permission
+---
+apiVersion: cometd.cometbackup.com/v1alpha1
+kind: CometServer
+metadata:
+  name: cometserver-1
+  namespace: default
+spec:
+  version: 23.5.0
+  license:
+    issuer: cometlicenseissuer-default
+    # TODO: License feautre flag management is not currently implemented
+    # features:
+    #   LIFT_STORAGE_ROLE: 0
+  ingress:
+    host: example.com
+---
+apiVersion: cometd.cometbackup.com/v1alpha1
+kind: CometServer
+metadata:
+  name: cometserver-2
+  namespace: default
+spec:
+  version: 23.3.9
+  license:
+    issuer: cometlicenseissuer-default
+    # TODO: License feautre flag management is not currently implemented
+    # features:
+    #   LIFT_STORAGE_ROLE: 0
+  ingress:
+    host: example.com
+EOF
 ```
