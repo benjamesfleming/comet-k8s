@@ -38,4 +38,4 @@ hostedZonePrefix: eu-central-1
 
 letsencrypt:
   email: ben@benfleming.nz
-  r53AccessKey: ""
+  r53AccessKey: AKIAQ6Z25NLX6YHHVGVX

@@ -1,6 +1,6 @@
 # Comet Server Cluster (Experimental)
 
-Create a three-node Comet Server region in Hetzner Cloud. Built using Hetzner's k3s terraform provider - [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner).
+Create a Comet Server cluster in Hetzner Cloud. Built using Hetzner's k3s terraform provider - [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner).
 
 **How it works:**
 
@@ -9,12 +9,6 @@ Create a three-node Comet Server region in Hetzner Cloud. Built using Hetzner's 
 3. Use a custom [helm](https://helm.sh/) chart to deploy [ghcr.io/cometbackup/comet-server](https://github.com/cometbackup/comet-server-docker/pkgs/container/comet-server) to each node (using StatefulSet with pod-antiaffinity to restrict one server per node).
 4. Use [external-dns](https://github.com/kubernetes-sigs/external-dns) to update Route53 records.
 5. Using pre-configured `account.cometbackup.com` credentials, generate a Comet Server serial number.
-
-**Overview:**
-
-![](doc/overview.png)
-
-*N.B. The diagram shows the deployment structure when using helm chart, not the operator.*
 
 **Requirements:**
 
@@ -43,18 +37,7 @@ export KUBECONFIG=/k3s_kubeconfig.yaml
 kubectl get nodes -o wide
 ```
 
-**Option 1**: Deploy a three-server Comet Server region.
-
-```bash
-# Secrets
-kubectl create secret generic comet-account-creds --namespace default --from-literal email=<account@email.com> --from-literal password=<account-password>
-kubectl create secret generic r53-creds --namespace default --from-literal access_key_id=<aws-access-key> --from-literal secret_access_key=<aws-secret-key>
-
-# Deploy the chart
-helm install cometd ./chart
-```
-
-**Option 2**: Deploy a Comet Server operator with built-in admin UI (WIP).
+Deploy a Comet Server operator with built-in admin UI (WIP) -
 
 ```bash
 export REGISTRY="<your-registry> # NOTE: The Hetzner cluster must have access to this registry
