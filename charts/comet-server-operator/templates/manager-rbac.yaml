@@ -1,0 +1,92 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "comet-server-operator.fullname" . }}-manager-role
+  labels:
+  {{- include "comet-server-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - deployments
+  - ingresses
+  - persistentvolumeclaims
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometservers/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "comet-server-operator.fullname" . }}-manager-rolebinding
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: operator
+    app.kubernetes.io/part-of: operator
+  {{- include "comet-server-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: '{{ include "comet-server-operator.fullname" . }}-manager-role'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "comet-server-operator.fullname" . }}-controller-manager'
+  namespace: '{{ .Release.Namespace }}'
