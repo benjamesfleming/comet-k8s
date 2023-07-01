@@ -3,6 +3,8 @@ FROM golang:1.19 as builder
 ARG TARGETOS
 ARG TARGETARCH
 
+LABEL org.opencontainers.image.source=https://github.com/benjamesfleming/comet-k8s
+
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -15,6 +17,7 @@ RUN go mod download
 COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
+COPY frontend/ frontend/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
