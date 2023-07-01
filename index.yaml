@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  comet-server:
+  - apiVersion: v2
+    appVersion: 23.6.3
+    created: "2023-07-01T01:30:34.235204106Z"
+    description: A Single Self-Hosted Comet Server Depolyment
+    digest: ec7f7df1f86d0a663776149630d13fc56fe805d3bf5832cf543083c71314ffb9
+    name: comet-server
+    type: application
+    urls:
+    - https://github.com/benjamesfleming/comet-k8s/releases/download/comet-server-0.1.0/comet-server-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-07-01T01:30:34.235212506Z"
