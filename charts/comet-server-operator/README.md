@@ -15,7 +15,7 @@ helm repo add comet-k8s https://benjamesfleming.github.io/comet-k8s
 
 helm install comet-server-operator comet-k8s/comet-server-operator
 
-cat <<EOF > kubectl -f -
+cat <<EOF | kubectl apply -f -
 apiVersion: cometd.cometbackup.com/v1alpha1
 kind: CometLicenseIssuer
 metadata:
