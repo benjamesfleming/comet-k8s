@@ -59,6 +59,12 @@ type CometServerReconciler struct {
 //+kubebuilder:rbac:groups=cometd.cometbackup.com,resources=cometservers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cometd.cometbackup.com,resources=cometservers/finalizers,verbs=update
 
+//+kubebuilder:rbac:groups=cometd.cometbackup.com,resources=cometlicenseissuers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=cometd.cometbackup.com,resources=cometlicenseissuers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=cometd.cometbackup.com,resources=cometlicenseissuers/finalizers,verbs=update
+
+//+kubebuilder:rbac:groups=*,resources=services;ingresses;persistentvolumeclaims;deployments,verbs=get;list;watch;create;update;patch;delete
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by

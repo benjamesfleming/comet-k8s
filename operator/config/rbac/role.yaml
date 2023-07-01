@@ -6,6 +6,47 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - '*'
+  resources:
+  - deployments
+  - ingresses
+  - persistentvolumeclaims
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cometd.cometbackup.com
+  resources:
+  - cometlicenseissuers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - cometd.cometbackup.com
   resources:
   - cometservers
