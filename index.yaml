@@ -3,6 +3,16 @@ entries:
   comet-server:
   - apiVersion: v2
     appVersion: 23.6.3
+    created: "2023-07-01T04:07:44.981269946Z"
+    description: A Single Self-Hosted Comet Server Depolyment
+    digest: 4e9a31da38c88a111ea4ae148846342bbacfe992d8d57a34f72368950ff94f62
+    name: comet-server
+    type: application
+    urls:
+    - https://github.com/benjamesfleming/comet-k8s/releases/download/comet-server-0.2.0/comet-server-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 23.6.3
     created: "2023-07-01T01:30:34.235204106Z"
     description: A Single Self-Hosted Comet Server Depolyment
     digest: ec7f7df1f86d0a663776149630d13fc56fe805d3bf5832cf543083c71314ffb9
@@ -11,4 +21,15 @@ entries:
     urls:
     - https://github.com/benjamesfleming/comet-k8s/releases/download/comet-server-0.1.0/comet-server-0.1.0.tgz
     version: 0.1.0
-generated: "2023-07-01T01:30:34.235212506Z"
+  comet-server-operator:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2023-07-01T04:07:45.111621076Z"
+    description: A Helm chart for Kubernetes
+    digest: 02a9c8e1c96f2f074d59280597946ceef7b4545210f474730119ff91808336ed
+    name: comet-server-operator
+    type: application
+    urls:
+    - https://github.com/benjamesfleming/comet-k8s/releases/download/comet-server-operator-0.1.0/comet-server-operator-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-07-01T04:07:45.112969395Z"
