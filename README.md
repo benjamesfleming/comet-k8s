@@ -41,7 +41,7 @@ terraform apply --auto-approve
 
 # You should now have a kubeconfig file in the project root -
 # Export this, and test the cluster connection
-export KUBECONFIG=/k3s_kubeconfig.yaml
+export KUBECONFIG=./k3s_kubeconfig.yaml
 kubectl get nodes -o wide
 ```
 
@@ -55,5 +55,13 @@ kubectl create secret generic comet-api-token \
 
 helm repo add comet-k8s https://benjamesfleming.github.io/comet-k8s
 
-helm install cometd comet-k8s/comet-server
+helm install cometd comet-k8s/comet-server \
+  --set volumeClaim.storageClassName=longhorn \
+  --set replicaCount=2
+```
+
+Access the Comet Server Admin UI (username: `admin`, password: `admin`) -
+
+```bash
+kubectl port-forward pods/cometd-comet-server-0 8060:8060
 ```
