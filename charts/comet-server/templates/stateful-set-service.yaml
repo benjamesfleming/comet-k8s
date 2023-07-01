@@ -1,0 +1,19 @@
+{{- range $i := until (.Values.replicaCount | int) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "comet-server.fullname" $ }}-{{ $i }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "comet-server.labels" $ | nindent 4 }}
+    statefulset.kubernetes.io/pod-name: {{ include "comet-server.fullname" $ }}-{{ $i }}
+spec:
+  ports:
+  - protocol: TCP
+    port: {{ $.Values.service.port }}
+    targetPort: 8060
+  selector:
+    {{- include "comet-server.selectorLabels" $ | nindent 4 }}
+    statefulset.kubernetes.io/pod-name: {{ include "comet-server.fullname" $ }}-{{ $i }}
+{{- end }}
