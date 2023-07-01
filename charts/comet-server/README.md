@@ -8,14 +8,16 @@ Please ensure that you have `kubectl` and `helm` installed before continuing.
 
 **Usage:**
 
-1. Ensure that your cluster is working
+1. Configure secrets/API authentication
 
-`kubectl get nodes -o wide`
+```bash
+kubectl create secret generic comet-api-token --namespace default --from-literal email=<email> --from-literal token=<token>
+```
 
-2. Configure secrets/API authentication
+2. Add the repo and deploy the chart. See [./values.yaml](./values.yaml) for extra configuration options.
 
-`kubectl create secret generic comet-api-token --namespace default --from-literal email=<email> --from-literal token=<token>`
+```bash
+helm repo add comet-k8s https://benjamesfleming.github.io/comet-k8s
 
-3. Deploy the chart. See [./values.yml](./values.yml) for extra configuration options.
-
-`helm install cometd ./`
+helm install cometd comet-k8s/comet-server
+```
