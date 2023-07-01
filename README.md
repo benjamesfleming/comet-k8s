@@ -1,14 +1,22 @@
-# Comet Server Cluster (Experimental)
+# Comet Server Kubernetes Charts (Experimental)
 
-Create a Comet Server cluster in Hetzner Cloud. Built using Hetzner's k3s terraform provider - [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner).
+Deploy a Comet Server in Hetzner Cloud. Built using Hetzner's k3s terraform provider - [kube-hetzner](https://github.com/kube-hetzner/terraform-hcloud-kube-hetzner).
+
+### Charts
+
+|Type|Description|Chart
+|---|---|---
+|Standalone|Deploy a standalone Comet Server|[charts/comet-server](./charts/comet-server/)
+|Operator (WIP)|Deploy a Comet Server operator with built-in admin UI|[charts/comet-server-operator](./charts/comet-server-operator/)
+
+### Deploy a test cluster in Hetzner Cloud
 
 **How it works:**
 
 1. Use [packer](https://www.packer.io/) to create a Hetzner snapshot containing the base k3s node image.
 2. Use [terraform](https://www.terraform.io/) to create a configure a three-node k3s cluster using Hetzner Cloud VMs.
-3. Use a custom [helm](https://helm.sh/) chart to deploy [ghcr.io/cometbackup/comet-server](https://github.com/cometbackup/comet-server-docker/pkgs/container/comet-server) to each node (using StatefulSet with pod-antiaffinity to restrict one server per node).
-4. Use [external-dns](https://github.com/kubernetes-sigs/external-dns) to update Route53 records.
-5. Using pre-configured `account.cometbackup.com` credentials, generate a Comet Server serial number.
+3. Use a [comet-server](./charts/comet-server) helm chart to deploy [ghcr.io/cometbackup/comet-server](https://github.com/cometbackup/comet-server-docker/pkgs/container/comet-server).
+4. Use pre-configured `account.cometbackup.com` credentials to generate a Self-Hosted Comet Server serials.
 
 **Requirements:**
 
@@ -37,54 +45,15 @@ export KUBECONFIG=/k3s_kubeconfig.yaml
 kubectl get nodes -o wide
 ```
 
-Deploy a Comet Server operator with built-in admin UI (WIP) -
+Add the Helm repo and deploy [charts/comet-server](./charts/comet-server/) - 
 
 ```bash
-export REGISTRY="<your-registry> # NOTE: The Hetzner cluster must have access to this registry
+kubectl create secret generic comet-api-token \
+  --namespace default \
+  --from-literal email=<email> \
+  --from-literal token=<token>
 
-cd operator
+helm repo add comet-k8s https://benjamesfleming.github.io/comet-k8s
 
-make docker-build docker-push IMG=$REGISTRY/comet-server-operator:latest
-make deploy IMG=$REGISTRY/comet-server-operator:latest
-
-cat <<EOF > kubectl -f -
-apiVersion: cometd.cometbackup.com/v1alpha1
-kind: CometLicenseIssuer
-metadata:
-  name: cometlicenseissuer-default
-spec:
-  auth:
-    email: user@example.com # https://account.cometbackup.com User email 
-    token: abc123           # https://account.cometbackup.com API token with the 'license::create' permission
----
-apiVersion: cometd.cometbackup.com/v1alpha1
-kind: CometServer
-metadata:
-  name: cometserver-1
-  namespace: default
-spec:
-  version: 23.5.0
-  license:
-    issuer: cometlicenseissuer-default
-    # TODO: License feautre flag management is not currently implemented
-    # features:
-    #   LIFT_STORAGE_ROLE: 0
-  ingress:
-    host: example.com
----
-apiVersion: cometd.cometbackup.com/v1alpha1
-kind: CometServer
-metadata:
-  name: cometserver-2
-  namespace: default
-spec:
-  version: 23.3.9
-  license:
-    issuer: cometlicenseissuer-default
-    # TODO: License feautre flag management is not currently implemented
-    # features:
-    #   LIFT_STORAGE_ROLE: 0
-  ingress:
-    host: example.com
-EOF
+helm install cometd comet-k8s/comet-server
 ```
